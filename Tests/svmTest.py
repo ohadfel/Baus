@@ -29,7 +29,13 @@ import socket
 
 # np.logspace(-2, 3, 6)
 
-DUMP_FOLDER = '/home/ohadfel/Copy/Baus/dumps'
+if socket.gethostname() == 'Ohad-PC':
+    base_path = 'C:\Users\Ohad\Copy\Baus'
+else:
+    base_path = '/home/ohadfel/Copy/Baus'
+
+DUMP_FOLDER = os.path.join(base_path, 'dumps')
+# DUMP_FOLDER = '/home/ohadfel/Copy/Baus/dumps'
 # DUMP_FOLDER = 'C:\Users\Ohad\Copy\Baus\dumps'
 
 # DUMP_FOLDER = '/media/ohadfel/New Volume/Results'
@@ -49,7 +55,7 @@ tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-1], 'C': [1]}, {'kernel': [
 # class Timer(object):
 #     def __init__(self, name=None, doPrint = True):
 #         self.name = name
-#         self.doPrint = doPrint
+#         self.doPrint = doPrintos.path.join(basePath, 'Pre', 'data1')
 #
 #     def __enter__(self):
 #         self.tstart = time.time()
@@ -63,26 +69,26 @@ tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-1], 'C': [1]}, {'kernel': [
 #         return calc
 
 
-def run(X, y, XTest, yTest, foldsNum, path, inds, jobsNum = 6, calcProbs = True):
+def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calcProbs=True):
     # y = y.astype(np.int)
-    #  yTest = yTest.astype(np.int)
+    # y_test = y_test.astype(np.int)
 
-    # heldoutSize = 1./foldsNum
-    # X, idx = shuffle(X)
+    # heldoutSize = 1./folds_num
+    # x, idx = shuffle(x)
     # y = y[idx]
-    # XTest, idx = shuffle(XTest)
-    # yTest = yTest[idx]
+    # x_test, idx = shuffle(x_test)
+    # y_test = y_test[idx]
 
-    # scaler = preprocessing.StandardScaler().fit(X)
-    # X = scaler.transform(X)
-    # XTest = scaler.transform(XTest)
+    # scaler = preprocessing.StandardScaler().fit(x)
+    # x = scaler.transform(x)
+    # x_test = scaler.transform(x_test)
 
-    # X = X[:5000, :]
+    # x = x[:5000, :]
     # y = y[:5000]
-    # ---------------------------------------------------- XTest = XTest[:500, :]
-    # ------------------------------------------------------- yTest = yTest[:500]
+    # ---------------------------------------------------- x_test = x_test[:500, :]
+    # ------------------------------------------------------- y_test = y_test[:500]
 
-    # cv = StratifiedShuffleSplit(y, foldsNum, heldoutSize, random_state=0)
+    # cv = StratifiedShuffleSplit(y, folds_num, heldoutSize, random_state=0)
     cv = IndicesKFold(inds, 5)#, 4000, 1000)
     # -------------------------------- scores = ['roc_auc','precision', 'recall']
     # -------------- aucScoreFunc = make_scorer(aucScore, greater_is_better=True)
@@ -95,43 +101,43 @@ def run(X, y, XTest, yTest, foldsNum, path, inds, jobsNum = 6, calcProbs = True)
     for tuned_param in tuned_parameters:
         params = []
         for fold_num, (train_index, test_index) in enumerate(cv):
-            params.append((X, y, train_index, test_index, tuned_param, fold_num, calcProbs))
+            params.append((x, y, train_index, test_index, tuned_param, fold_num, calcProbs))
 
         print(tuned_param)
-        if (jobsNum == 1):
-            mapResults = [calc_cv_scores(p) for p in params]  # For debugging
+        if jobs_num == 1:
+            map_results = [calc_cv_scores(p) for p in params]  # For debugging
         else:
-            mapResults = utils.parmap(calc_cv_scores, params, jobsNum)
+            map_results = utils.parmap(calc_cv_scores, params, jobs_num)
 
-        cv_scores = np.array([score for (clf, score) in mapResults][:len(cv)])
+        cv_scores = np.array([score for (clf, score) in map_results][:len(cv)])
         print(cv_scores)
-        clf = mapResults[0][0]
+        clf = map_results[0][0]
 
         elapsed = time.time() - t
         print('Request took '+str(elapsed)+' sec.')
         print(str(datetime.now()))
 
-        scaler = preprocessing.StandardScaler().fit(X)
-        X = scaler.transform(X)
-        XTest = scaler.transform(XTest)
+        scaler = preprocessing.StandardScaler().fit(x)
+        x = scaler.transform(x)
+        x_test = scaler.transform(x_test)
 
-        printResults(clf, XTest, yTest, calcProbs, path,cv_scores)
+        printResults(clf, x_test, y_test, calcProbs, path, cv_scores)
 
 
 def calc_cv_scores(p):
-    X, y, train_index, test_index, tuned_param, fold_num, calcProbs = p
+    x, y, train_index, test_index, tuned_param, fold_num, calcProbs = p
 
-    scaler = preprocessing.StandardScaler().fit(X[train_index])
-    X[train_index] = scaler.transform(X[train_index])
-    X[test_index] = scaler.transform(X[test_index])
+    scaler = preprocessing.StandardScaler().fit(x[train_index])
+    x[train_index] = scaler.transform(x[train_index])
+    x[test_index] = scaler.transform(x[test_index])
 
     clf = TSVC(C=tuned_param['C'][0], kernel=tuned_param['kernel'][0], gamma=tuned_param.get('gamma', [0])[0], calcProbs=calcProbs)
     print(fold_num, str(datetime.now()))
-    print('number of train samples'+str(X[train_index].shape), 'number of test samples'+str(X[test_index].shape))
+    print('number of train samples'+str(x[train_index].shape), 'number of test samples'+str(x[test_index].shape))
     print(Counter(y))
     t = time.time()
-    clf.fit(X[train_index], y[train_index])
-    ypred = clf.predict(X[test_index])
+    clf.fit(x[train_index], y[train_index])
+    ypred = clf.predict(x[test_index])
     score = aucScore(ypred, y[test_index])
     elapsed = time.time() - t
     print(tuned_param)
@@ -141,20 +147,20 @@ def calc_cv_scores(p):
     # clf = GridSearchCV(svm.LinearSVC(C=0.01),tuned_param, cv=cv, scoring=scores[0], verbose=9, n_jobs=5)
     # clf = GridSearchCV(TSVC(calcProbs=calcProbs), tuned_param, cv=cv, scoring=scores[0], verbose=999, n_jobs=5)
     # clf = cross_val_score(TSVC(calcProbs=calcProbs, C=tuned_param['C'][0],
-    #     kernel=tuned_param['kernel'][0], gamma=tuned_param.get('gamma', [0])[0]), X, y, cv=cv,
+    #     kernel=tuned_param['kernel'][0], gamma=tuned_param.get('gamma', [0])[0]), x, y, cv=cv,
     #     scoring=scores[0], n_jobs=5, verbose=999)
     # ---------------------------------------------- t=TSVC(C=1,kernel='rbf')
     # --------- clf = GridSearchCV(t, tuned_parameters, cv=cv, scoring=score)
-    # ------------------------------------------------------ X = sp.csr_matrix(X)
+    # ------------------------------------------------------ x = sp.csr_matrix(x)
     #  ---------------------------------------------------------------
     # ------------------------ clf = svm.LinearSVC(C=0.01, verbose=9, dual=False)
     # ----------------------- #clf = svm.SVC(kernel='linear', C=0.01, verbose=99)
     # ------------------------------------------------ print(str(datetime.now()))
-    # ------------------------------------------------------------- clf.fit(X, y)
+    # ------------------------------------------------------------- clf.fit(x, y)
     # ------------------------------------------------ print(str(datetime.now()))
 
 
-def printResults(clf, xtest=None, ytest=None, calcProbs=False, path=None, time=None, cv_scores=None):
+def printResults(clf, x_test=None, y_test=None, calcProbs=False, path=None, time=None, cv_scores=None):
     # save(clf, os.path.join(DUMP_FOLDER, 'Est.pkl'))
     # print("Best parameters set found on development set:")
     # print()
@@ -173,21 +179,21 @@ def printResults(clf, xtest=None, ytest=None, calcProbs=False, path=None, time=N
     #  print("The scores are computed on the full evaluation set.")
     #  print()
 
-    if xtest is not None:
-        y_true, y_pred = ytest, clf.predict(xtest)
-        if (calcProbs):
+    if x_test is not None:
+        y_true, y_pred = y_test, clf.predict(x_test)
+        if calcProbs:
             save(y_pred, os.path.join(DUMP_FOLDER, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
             calcAUC(y_pred, y_true, ROCFigName=DUMP_FOLDER+'/'+str(clf)+'.png')
-            score=aucScore(y_pred, y_true)
+            score = aucScore(y_pred, y_true)
             y_pred = probsToPreds(y_pred)
         cm = confusion_matrix(y_true, y_pred)
         np.set_printoptions(precision=2)
         cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
         print(cm_normalized)
         # score=abs(cm_normalized[0,0]-cm_normalized[0,1]+cm_normalized[1,1]-cm_normalized[1,0])
-        scoreStr = "{:.3f}".format(score)
+        score_str = "{:.3f}".format(score)
         path = path.split('/')[-1]
-        save(clf, os.path.join(DUMP_FOLDER, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, scoreStr)))
+        save(clf, os.path.join(DUMP_FOLDER, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str)))
     #    save(clf, os.path.join(DUMP_FOLDER, 'Est'+str(score)+'.pkl'))
 
         report(str(clf), path, score, 'Est'+str(score)+'.pkl', time, cv_scores, cm_normalized)
@@ -234,22 +240,22 @@ class TSVC(SVC):
         #----------------------------------------------- print("in constructor")
         # print('C='+str(C)+', kernel='+kernel+', gamma='+str(gamma)+', probability=True')
 
-    def fit(self, X, y, doShuffle=True):
+    def fit(self, x, y, doShuffle=True):
         # if (doShuffle):
-        #     (X, idx) = shuffle(X)
+        #     (x, idx) = shuffle(x)
             # y = y[idx]
-        # self.scaler = preprocessing.StandardScaler().fit(X)
-        # X = self.scaler.transform(X)
-        super(TSVC, self).fit(X, y)
+        # self.scaler = preprocessing.StandardScaler().fit(x)
+        # x = self.scaler.transform(x)
+        super(TSVC, self).fit(x, y)
         return self
 
-    def predict(self, X):
+    def predict(self, x):
         print('predict!')
-#         X = self.scaler.transform(X)
+#         x = self.scaler.transform(x)
         if self.calcProbs:
-            probs = super(TSVC, self).predict_proba(X)
+            probs = super(TSVC, self).predict_proba(x)
         else:
-            probs = super(TSVC, self).predict(X)
+            probs = super(TSVC, self).predict(x)
         # score = roc_auc_score(self.ytrue, probs[:,1])
         return probs
 
@@ -273,8 +279,8 @@ class TSVC(SVC):
 '''
 
 
-def save(obj, fileName):
-    with open(fileName, 'w') as pklFile:
+def save(obj, file_name):
+    with open(file_name, 'w') as pklFile:
         pickle.dump(obj, pklFile)
 
 
@@ -285,8 +291,8 @@ def probsToPreds(probs):
 def loadData(path):
     f = h5py.File(path+'/Xtrain.mat', 'r')
     data = f.get('XTrain')
-    X = np.array(data)  # For converting to numpy array
-    X = X.T
+    x = np.array(data)  # For converting to numpy array
+    x = x.T
 
     f = h5py.File(path+'/Ytrain.mat', 'r')
     data = f.get('YTrain')
@@ -296,24 +302,25 @@ def loadData(path):
 
     f = h5py.File(path+'/Xtest.mat', 'r')
     data = f.get('XTest')
-    Xtest = np.array(data)  # For converting to numpy array
-    Xtest = Xtest.T
+    x_test = np.array(data)  # For converting to numpy array
+    x_test = x_test.T
 
     f = h5py.File(path+'/Ytest.mat', 'r')
     data = f.get('YTest')
-    Ytest = np.array(data)  # For converting to numpy array
-    Ytest = np.squeeze(Ytest)
-    Ytest = Ytest.T
+    y_test = np.array(data)  # For converting to numpy array
+    y_test = np.squeeze(y_test)
+    y_test = y_test.T
 
-    return(X, y, Xtest, Ytest)
+    return x, y, x_test, y_test
 
 
-def report(params, path, score, dumpFileName, time, cv_scores, cm_normalized):
+def report(params, path, score, dump_file_name, time, cv_scores, cm_normalized):
     # AUC Score=88,
-    f = open(DUMP_FOLDER+'/log.txt', 'a')
+    log_str = os.path.join(DUMP_FOLDER, 'log.txt')
+    f = open(log_str, 'a')
     f.seek(0)  # get to the first position
     f.write('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SCORE='+str(score)+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
-    line = 'params '+params+' dataset '+path+' score '+str(score)+' dump File Name '+dumpFileName+' Time was '+str(time) + "\n"
+    line = 'params '+params+' dataset '+path+' score '+str(score)+' dump File Name '+dump_file_name+' Time was '+str(time) + "\n"
     f.write(line)
     line = 'CV scores=' + str(cv_scores) + ' CM='+str(cm_normalized) + "\n"
     f.write(line)
@@ -321,7 +328,7 @@ def report(params, path, score, dumpFileName, time, cv_scores, cm_normalized):
     f.close()
 
 
-def calcAUC(probs, y, doPlot = True, ROCFigName = ''):
+def calcAUC(probs, y, do_plot=True, ROCFigName=''):
     mean_tpr = 0.0
     mean_fpr = np.linspace(0, 1, 100)
 
@@ -329,18 +336,18 @@ def calcAUC(probs, y, doPlot = True, ROCFigName = ''):
     mean_tpr += interp(mean_fpr, fpr, tpr)
     mean_tpr[0] = 0.0
     if ROCFigName != '':
-        doPlot = False
-    return plotROC(mean_tpr, mean_fpr, doPlot, fileName = ROCFigName)
+        do_plot = False
+    return plotROC(mean_tpr, mean_fpr, do_plot, file_name=ROCFigName)
 
 
-def plotROC(mean_tpr, mean_fpr, doPlot, lenCV = 1, fileName = ''):
-    if doPlot:
+def plotROC(mean_tpr, mean_fpr, do_plot, lenCV = 1, file_name = ''):
+    if do_plot:
         plt.plot([0, 1], [0, 1], '--', color=(0.6, 0.6, 0.6), label='Chance')
 
     mean_tpr /= float(lenCV)
     mean_tpr[-1] = 1.0
     mean_auc = auc(mean_fpr, mean_tpr)
-    # if (doPlot):
+    # if (do_plot):
     plt.ion()
     plt.plot(mean_fpr, mean_tpr, 'r-', label='Mean ROC (area = %0.2f)' % mean_auc, lw=3)
     plt.plot([0, 1], [0, 1], 'k--')
@@ -350,10 +357,10 @@ def plotROC(mean_tpr, mean_fpr, doPlot, lenCV = 1, fileName = ''):
     plt.ylabel('True Positive Rate')
     plt.title('ROC curve')
     plt.legend(loc="lower right")
-    if fileName != '':
-        plt.savefig(fileName)
+    if file_name != '':
+        plt.savefig(file_name)
 
-    if doPlot:
+    if do_plot:
         plt.show()
     else:
         plt.close()
@@ -365,23 +372,24 @@ def go():
     # differentDataPaths=[x[0] for x in os.walk(directory)]
     # differentDataPaths=differentDataPaths[1:]
     if socket.gethostname() == 'Ohad-PC':
-        basePath = 'C:\Users\Ohad\Copy\Baus'
+        base_path = 'C:\Users\Ohad\Copy\Baus'
     else:
-        basePath = '/home/ohadfel/Copy/Baus'
+        base_path = '/home/ohadfel/Copy/Baus'
 
-    path = os.path.join(basePath, 'Code', 'matlab', 'inds.mat')
+    # path = os.path.join(basePath, 'Code', 'matlab', 'inds.mat')
+    path = os.path.join(base_path, 'Pre', 'data1', 'inds.mat')
 
     f = h5py.File(path, 'r')
     inds = f.get('patternsCrossValInd')
     inds = np.array(inds, dtype=np.int)
     # path='/home/ohadfel/Desktop/4ohad/Last_change'
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
-    path = os.path.join(basePath, 'Pre', 'data3')
-    X, y, Xtest, Ytest = loadData(path)
+    path = os.path.join(base_path, 'Pre', 'data1')
+    x, y, x_test, y_test = loadData(path)
     print(os.path.dirname(os.path.abspath(__file__)))
-    foldsNum = 5
+    folds_num = 5
 
-    run(X, y, Xtest, Ytest, foldsNum, path, inds, 5)
+    run(x, y, x_test, y_test, folds_num, path, inds, 5)
     print('finish!')
 
 
