@@ -23,7 +23,7 @@ function [ XTraincurCond, XTestcurCond,trialsNumAndLength,patternsCrossValInd] =
             XTraincurCond=[XTraincurCond;X(startIndForcurCond:endIndForcurCond,:)];
         end
         
-         patternsCrossValInd = crossValidationInds( trialsNumAndLength,5 );
+         patternsCrossValInd = crossValidationInds2( trialsNumAndLength,5 );
          
         %test
         limitedP=p(floor(trainTestRatio*length(p))+1:end);

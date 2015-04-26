@@ -1,8 +1,10 @@
-'''
-Created on Mar 23, 2015
-
-@author: ohadfel
-'''
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
+# ~   Ohad Felsenstein
+# ~   Code
+# ~   SVM_MIL
+# ~   21/04/2015
+# ~   17:27
+# *~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*
 
 from sklearn import preprocessing
 from sklearn.svm import SVC
@@ -369,14 +371,14 @@ def go():
     else:
         basePath = '/home/ohadfel/Copy/Baus'
 
-    path = os.path.join(basePath, 'Code', 'matlab', 'inds.mat')
+    path = os.path.join(basePath, 'Pre', 'data1', 'inds.mat')
 
     f = h5py.File(path, 'r')
     inds = f.get('patternsCrossValInd')
     inds = np.array(inds, dtype=np.int)
     # path='/home/ohadfel/Desktop/4ohad/Last_change'
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
-    path = os.path.join(basePath, 'Pre', 'data3')
+    path = os.path.join(basePath, 'Pre', 'data1')
     X, y, Xtest, Ytest = loadData(path)
     print(os.path.dirname(os.path.abspath(__file__)))
     foldsNum = 5

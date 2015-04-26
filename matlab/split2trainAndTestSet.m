@@ -5,8 +5,6 @@ function [saved] = split2trainAndTestSet( X,cond1,cond2,trainTestRatio,yLabled )
 %% split data to train and tset set for Cond1 and Cond2 conditions
 saved=0;
 
-
-
 [ XTrainCond1, XTestCond1,trialsNumAndLength1,patternsCrossValInd1] = split2trainAndTestSet1Cond( X,cond1 ,yLabled,trainTestRatio);
 [ XTrainCond2, XTestCond2,trialsNumAndLength2,patternsCrossValInd2] = split2trainAndTestSet1Cond( X,cond2 ,yLabled,trainTestRatio);
 
@@ -24,7 +22,7 @@ YTest=[ones(size(XTestCond1,1),1)*0;ones(size(XTestCond2,1),1)*1];
 
 lastOfCond1=max(patternsCrossValInd1(:,1));
 newPatternsCrossValInd2=patternsCrossValInd2;
-newPatternsCrossValInd2=newPatternsCrossValInd2(:,1)+lastOfCond1;
+newPatternsCrossValInd2(:,1)=newPatternsCrossValInd2(:,1)+lastOfCond1;
 patternsCrossValInd=[patternsCrossValInd1;newPatternsCrossValInd2];
 save('Xtrain.mat','XTrain','cond1','cond2','-v7.3');
 save('Xtest.mat','XTest','cond1','cond2','-v7.3');

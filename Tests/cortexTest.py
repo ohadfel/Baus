@@ -29,22 +29,25 @@ import socket
 
 # np.logspace(-2, 3, 6)
 
-DUMP_FOLDER = '/home/ohadfel/Copy/Baus/dumps'
+# DUMP_FOLDER = '/home/ohadfel/Copy/Baus/dumps'
 # DUMP_FOLDER = 'C:\Users\Ohad\Copy\Baus\dumps'
+DUMP_FOLDER = '/home/lab/ohadfel/Documents/Baus/dumps'
 
 # DUMP_FOLDER = '/media/ohadfel/New Volume/Results'
 
-tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [1]},
-                    {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [1]},
-                    {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [0.1]},
-                    {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [0.1]},
-                    {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [0.01]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [0.01]},
-                    {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [0.01]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [0.01]},
-                    {'kernel': ['rbf'], 'gamma': [1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [10], 'C': [1]},
+# tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [1]},
+#                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [1]},
+#                     {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [0.1]},
+#                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [0.1]},
+#                     {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [0.01]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [0.01]},
+#                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [0.01]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [0.01]}]
+
+tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [10], 'C': [1]},
                     {'kernel': ['rbf'], 'gamma': [1e2], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1], 'C': [0.1]},
-                    {'kernel': ['rbf'], 'gamma': [10], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [10]},
-                    {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [10]},
-                    {'kernel': ['rbf'], 'gamma': [1], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [10], 'C': [10]}]
+                    {'kernel': ['rbf'], 'gamma': [10], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e2], 'C': [0.1]},
+                    {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [10]},
+                    {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [1], 'C': [10]},
+                    {'kernel': ['rbf'], 'gamma': [10], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [1e2], 'C': [10]}]
 
 # class Timer(object):
 #     def __init__(self, name=None, doPrint = True):
@@ -173,7 +176,7 @@ def printResults(clf, xtest=None, ytest=None, calcProbs=False, path=None, time=N
     #  print("The scores are computed on the full evaluation set.")
     #  print()
 
-    if xtest is not None:
+    if not xtest is None:
         y_true, y_pred = ytest, clf.predict(xtest)
         if (calcProbs):
             save(y_pred, os.path.join(DUMP_FOLDER, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
@@ -364,11 +367,11 @@ def go():
     # directory='/home/ohadfel/Desktop/4ohad/Pre'
     # differentDataPaths=[x[0] for x in os.walk(directory)]
     # differentDataPaths=differentDataPaths[1:]
-    if socket.gethostname() == 'Ohad-PC':
-        basePath = 'C:\Users\Ohad\Copy\Baus'
-    else:
-        basePath = '/home/ohadfel/Copy/Baus'
-
+    # if socket.gethostname() == 'Ohad-PC':
+    #     basePath = 'C:\Users\Ohad\Copy\Baus'
+    # else:
+    #     basePath = '/home/ohadfel/Copy/Baus'
+    basePath = '/home/lab/ohadfel/Documents/Baus'
     path = os.path.join(basePath, 'Code', 'matlab', 'inds.mat')
 
     f = h5py.File(path, 'r')
@@ -376,7 +379,7 @@ def go():
     inds = np.array(inds, dtype=np.int)
     # path='/home/ohadfel/Desktop/4ohad/Last_change'
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
-    path = os.path.join(basePath, 'Pre', 'data3')
+    path = os.path.join(basePath, 'Pre', 'data1')
     X, y, Xtest, Ytest = loadData(path)
     print(os.path.dirname(os.path.abspath(__file__)))
     foldsNum = 5
