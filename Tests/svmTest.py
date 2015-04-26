@@ -183,7 +183,7 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
         y_true, y_pred = y_test, clf.predict(x_test)
         if calc_probs:
             save(y_pred, os.path.join(DUMP_FOLDER, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
-            calc_auc(y_pred, y_true, ROCFigName=DUMP_FOLDER+'/'+str(clf)+'.png')
+            calc_auc(y_pred, y_true, ROCFigName=os.path.join(DUMP_FOLDER, str(clf)+'.png'))
             score = auc_score(y_pred, y_true)
             y_pred = probs_to_preds(y_pred)
         cm = confusion_matrix(y_true, y_pred)
@@ -320,12 +320,12 @@ def report(params, path, score, dump_file_name, time, cv_scores, cm_normalized):
     log_str = os.path.join(DUMP_FOLDER, 'log.txt')
     f = open(log_str, 'a')
     f.seek(0)  # get to the first position
-    f.write('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SCORE='+str(score)+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+    f.write('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SCORE='+str(score)+'~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
     line = 'params '+params+' dataset '+path+' score '+str(score)+' dump File Name '+dump_file_name+' Time was '+str(time) + "\n"
     f.write(line)
     line = 'CV scores=' + str(cv_scores) + ' CM='+str(cm_normalized) + "\n"
     f.write(line)
-    f.write('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
+    f.write('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
     f.close()
 
 
