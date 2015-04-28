@@ -196,7 +196,11 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
         # score=abs(cm_normalized[0,0]-cm_normalized[0,1]+cm_normalized[1,1]-cm_normalized[1,0])
         score_str = "{:.3f}".format(score)
         path = path.split('/')[-1]
-        save(clf, os.path.join(DUMP_FOLDER, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str)))
+
+        directory = os.path.join(DUMP_FOLDER, mini_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        save(clf, os.path.join(directory, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str)))
     #    save(clf, os.path.join(DUMP_FOLDER, 'Est'+str(score)+'.pkl'))
 
         report(str(clf), path, score, 'Est'+str(score)+'.pkl', time, cv_scores, cm_normalized)
