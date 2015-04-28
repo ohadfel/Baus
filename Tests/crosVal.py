@@ -27,8 +27,8 @@ class IndicesKFold(object):
         return self.k
 
 
-def shuffle(x):  # seed=13
-    idx = np.arange(x.shape[0])
-    np.random.seed(13)
-    np.random.shuffle(idx)
-    return x[idx]
+# def shuffle(x):  # seed=13
+#     idx = np.arange(x.shape[0])
+#     np.random.seed(13)
+#     np.random.shuffle(idx)
+#     return x[idx]

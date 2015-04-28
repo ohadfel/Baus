@@ -121,7 +121,10 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
         x = scaler.transform(x)
         x_test = scaler.transform(x_test)
 
-        print_results(clf, x_test, y_test, calc_probs, path, cv_scores)
+
+        mini_path=path.split('/')[-1]
+        mini_path=mini_path.replace(' ','_')
+        print_results(clf, x_test, y_test, calc_probs, path, cv_scores,mini_path)
 
 
 def calc_cv_scores(p):
@@ -160,7 +163,7 @@ def calc_cv_scores(p):
     # ------------------------------------------------ print(str(datetime.now()))
 
 
-def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, time=None, cv_scores=None):
+def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, time=None, cv_scores=None,mini_path=''):
     # save(clf, os.path.join(DUMP_FOLDER, 'Est.pkl'))
     # print("Best parameters set found on development set:")
     # print()
@@ -182,8 +185,8 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
     if x_test is not None:
         y_true, y_pred = y_test, clf.predict(x_test)
         if calc_probs:
-            save(y_pred, os.path.join(DUMP_FOLDER, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
-            calc_auc(y_pred, y_true, ROCFigName=os.path.join(DUMP_FOLDER, str(clf)+'.png'))
+            save(y_pred, os.path.join(DUMP_FOLDER,mini_path, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
+            calc_auc(y_pred, y_true, roc_fig_name=os.path.join(DUMP_FOLDER, str(clf)+'.png'))
             score = auc_score(y_pred, y_true)
             y_pred = probs_to_preds(y_pred)
         cm = confusion_matrix(y_true, y_pred)
@@ -235,8 +238,8 @@ def shuffle(x):  # seed=13
 
 class TSVC(SVC):
 
-    def __init__(self, c=1, kernel='rbf', gamma=0, calc_probs=True):
-        super(TSVC, self).__init__(C=c, kernel=kernel, gamma=gamma, probability=True)
+    def __init__(self, C=1, kernel='rbf', gamma=0, calc_probs=True):
+        super(TSVC, self).__init__(C=C, kernel=kernel, gamma=gamma, probability=True)
         self.calc_probs = calc_probs
         # ----------------------------------------------- print("in constructor")
         # print('C='+str(C)+', kernel='+kernel+', gamma='+str(gamma)+', probability=True')
@@ -290,29 +293,34 @@ def probs_to_preds(probs):
 
 
 def load_data(path):
-    f = h5py.File(path+'/Xtrain.mat', 'r')
+    os.path.join(path, 'Xtrain.mat')
+    f = h5py.File(os.path.join(path, 'Xtrain.mat'), 'r')
     data = f.get('XTrain')
     x = np.array(data)  # For converting to numpy array
     x = x.T
 
-    f = h5py.File(path+'/Ytrain.mat', 'r')
+    f = h5py.File(os.path.join(path, 'Ytrain.mat'), 'r')
     data = f.get('YTrain')
     y = np.array(data)  # For converting to numpy array
     y = np.squeeze(y)
     y = y.T
 
-    f = h5py.File(path+'/Xtest.mat', 'r')
+    f = h5py.File(os.path.join(path, 'Xtest.mat'), 'r')
     data = f.get('XTest')
     x_test = np.array(data)  # For converting to numpy array
     x_test = x_test.T
 
-    f = h5py.File(path+'/Ytest.mat', 'r')
+    f = h5py.File(os.path.join(path, 'Ytest.mat'), 'r')
     data = f.get('YTest')
     y_test = np.array(data)  # For converting to numpy array
     y_test = np.squeeze(y_test)
     y_test = y_test.T
 
-    return x, y, x_test, y_test
+    f = h5py.File(os.path.join(path, 'inds.mat'), 'r')
+    inds = f.get('patternsCrossValInd')
+    inds = np.array(inds, dtype=np.int)
+
+    return x, y, x_test, y_test, inds
 
 
 def report(params, path, score, dump_file_name, time, cv_scores, cm_normalized):
@@ -369,28 +377,29 @@ def plot_roc(mean_tpr, mean_fpr, do_plot, len_cross_validation=1, file_name=''):
 
 
 def go():
-    # directory='/home/ohadfel/Desktop/4ohad/Pre'
-    # differentDataPaths=[x[0] for x in os.walk(directory)]
-    # differentDataPaths=differentDataPaths[1:]
+    directory=os.path.join(base_path,'Pre')
+    differentDataPaths=[x[0] for x in os.walk(directory)]
+    differentDataPaths=differentDataPaths[1:]
     # if socket.gethostname() == 'Ohad-PC':
     #     base_path = 'C:\Users\Ohad\Copy\Baus'
     # else:
     #     base_path = '/home/ohadfel/Copy/Baus'
 
     # path = os.path.join(basePath, 'Code', 'matlab', 'inds.mat')
-    path = os.path.join(base_path, 'Pre', 'data1', 'inds.mat')
+    # path = os.path.join(base_path, 'Pre', 'data1', 'inds.mat')
 
-    f = h5py.File(path, 'r')
-    inds = f.get('patternsCrossValInd')
-    inds = np.array(inds, dtype=np.int)
+    # f = h5py.File(path, 'r')
+    # inds = f.get('patternsCrossValInd')
+    # inds = np.array(inds, dtype=np.int)
     # path='/home/ohadfel/Desktop/4ohad/Last_change'
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
-    path = os.path.join(base_path, 'Pre', 'data1')
-    x, y, x_test, y_test = load_data(path)
-    print(os.path.dirname(os.path.abspath(__file__)))
-    folds_num = 5
+    for feature_folder in differentDataPaths:
+        #path = os.path.join(base_path, 'Pre', 'data1')
+        x, y, x_test, y_test, inds = load_data(feature_folder)
+        print(os.path.dirname(os.path.abspath(__file__)))
+        folds_num = 5
 
-    run(x, y, x_test, y_test, folds_num, path, inds, 5)
+        run(x, y, x_test, y_test, folds_num, feature_folder, inds, 5)
     print('finish!')
 
 
