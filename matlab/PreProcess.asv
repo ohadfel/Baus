@@ -13,79 +13,80 @@ else
     path='/home/ohadfel/Copy/Baus/Code/matlab/';
 end
 
-% Load Idan's data
-% load('CCDppBySNRnew.mat');
-% load('547pntHull.mat');
-% 
-% 
-% CCD547=CCDpp(indSelectedBalls,:);
-% 
-% 
-% clear PRIvol;
-% clear newBalls;
-% clear newPosBalls;
-% clear CCDpp;
-% clear indSelectedBalls;
-% 
-% Find the samples where a bau was found
-% activeSamples=find(sum(CCD547));
-% save('activeSamples.mat','activeSamples','samplingRate','-v7.3');
-% 
-% sampleBetweenActiveSamples = diff(activeSamples);
-% 
-% cumsumSampleBetweenActiveSamples = cumsum(sampleBetweenActiveSamples);
-% cumsumIter=cumsumSampleBetweenActiveSamples;
-% 
-% patternIndRange=zeros(length(activeSamples),2);
-% test=5000;
-% 
-% tic;
-% for ii=1:length(activeSamples)
-% for ii=1:test
-%     disp(ii);
-%     endIndOfPattern=activeSamples(ii)+cumsumIter(max(find(cumsumIter<=patternMaxLen)));
-%     if isempty(endIndOfPattern)
-%         endIndOfPattern=activeSamples(ii);
-%     end
-%     patternIndRange(ii,:) = [activeSamples(ii),endIndOfPattern]; 
-%     cumsumIter=cumsumIter-cumsumIter(1);
-%     cumsumIter=cumsumIter(2:end);
-% end
-% toc
-% 
-% activityInNet=sum(CCD547);
-% activityInNetP=activityInNet(activeSamples);
-% locations=zeros(max(activityInNet),length(activeSamples));
-% for ii=1:length(activeSamples)
-%     locations(1:sum(CCD547(:,activeSamples(ii))),ii)=find(CCD547(:,activeSamples(ii)));
-% end
-% 
-% create X feature vec
-% X=ones(size(patternIndRange,1),547)*-1;
-% for patternsIter=1:size(patternIndRange,1)
-% for patternsIter=1:2
-%     disp(['pattern number - ',num2str(patternsIter)]);
-%     flags=zeros(1,547);
-%     liveInd4location = find(activeSamples>=patternIndRange(patternsIter,1) & activeSamples<=patternIndRange(patternsIter,2));
-%     liveInd4samples = activeSamples(liveInd4location);
-%      
-%     base=liveInd4samples(1);
-% 
-%     for jj=1:length(liveInd4location)
-%         locationsInSample = locations(:,liveInd4location(jj));
-%         locationsInSample(locationsInSample==0) = [];
-%         for kk=1:length(locationsInSample)
-%             X(patternsIter,locationsInSample(kk))=liveInd4samples(jj)-base;
-%             flags(locationsInSample(kk))=flags(locationsInSample(kk))+1;
-%         end
-%     end
-%     if max(flags)>1
-%         disp('~~~~~~~~~~~~~~~~~~~~~~~~~~~ERROR~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-%     end
-% end
-% 
-% X=X+1;
-% save('newX.mat','X','-v7.3');
+%% Load Idan's data
+load('CCDppBySNRnew.mat');
+load('547pntHull.mat');
+
+
+CCD547=CCDpp(indSelectedBalls,:);
+
+
+clear PRIvol;
+clear newBalls;
+clear newPosBalls;
+clear CCDpp;
+clear indSelectedBalls;
+
+%% Find the samples where a bau was found
+activeSamples=find(sum(CCD547));
+save('activeSamples.mat','activeSamples','samplingRate','-v7.3');
+
+sampleBetweenActiveSamples = diff(activeSamples);
+
+cumsumSampleBetweenActiveSamples = cumsum(sampleBetweenActiveSamples);
+cumsumIter=cumsumSampleBetweenActiveSamples;
+
+patternIndRange=zeros(length(activeSamples),2);
+test=5000;
+
+tic;
+disp(['creating activeSamples']);
+for ii=1:length(activeSamples)
+%for ii=1:test
+    %disp(['activeSamples =',num2str(ii)]);
+    endIndOfPattern=activeSamples(ii)+cumsumIter(max(find(cumsumIter<=patternMaxLen)));
+    if isempty(endIndOfPattern)
+        endIndOfPattern=activeSamples(ii);
+    end
+    patternIndRange(ii,:) = [activeSamples(ii),endIndOfPattern]; 
+    cumsumIter=cumsumIter-cumsumIter(1);
+    cumsumIter=cumsumIter(2:end);
+end
+toc
+
+activityInNet=sum(CCD547);
+activityInNetP=activityInNet(activeSamples);
+locations=zeros(max(activityInNet),length(activeSamples));
+for ii=1:length(activeSamples)
+    locations(1:sum(CCD547(:,activeSamples(ii))),ii)=find(CCD547(:,activeSamples(ii)));
+end
+
+%% create X feature vec
+X=ones(size(patternIndRange,1),547)*-1;
+for patternsIter=1:size(patternIndRange,1)
+%for patternsIter=1:2
+    disp(['pattern number - ',num2str(patternsIter)]);
+    flags=zeros(1,547);
+    liveInd4location = find(activeSamples>=patternIndRange(patternsIter,1) & activeSamples<=patternIndRange(patternsIter,2));
+    liveInd4samples = activeSamples(liveInd4location);
+     
+    base=liveInd4samples(1);
+
+    for jj=1:length(liveInd4location)
+        locationsInSample = locations(:,liveInd4location(jj));
+        locationsInSample(locationsInSample==0) = [];
+        for kk=1:length(locationsInSample)
+            X(patternsIter,locationsInSample(kk))=liveInd4samples(jj)-base;
+            flags(locationsInSample(kk))=flags(locationsInSample(kk))+1;
+        end
+    end
+    if max(flags)>1
+        disp('~~~~~~~~~~~~~~~~~~~~~~~~~~~ERROR~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+    end
+end
+
+X=X+1;
+save('newX.mat','X','-v7.3');
 
 %%
 load('activeSamples.mat')
