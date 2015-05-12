@@ -32,25 +32,29 @@ import socket
 if socket.gethostname() == 'Ohad-PC':
     base_path = 'C:\Users\Ohad\Copy\Baus'
 else:
-    base_path = '/home/ohadfel/Copy/Baus'
+    base_path = '/media/ohadfel/New Volume/Copy/Baus'
+    #  base_path = '/home/ohadfel/Copy/Baus'
 
 DUMP_FOLDER = os.path.join(base_path, 'dumps')
+CURRENT_DUMP_FOLDER = ''
 # DUMP_FOLDER = '/home/ohadfel/Copy/Baus/dumps'
 # DUMP_FOLDER = 'C:\Users\Ohad\Copy\Baus\dumps'
 
-# DUMP_FOLDER = '/media/ohadfel/New Volume/Results'
+# DUMP_FOLDER = '/media/ohadfel/New\ Volume/Results'
 
 tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [1]},
                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [1]},
+                    {'kernel': ['rbf'], 'gamma': [1e-5], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-6], 'C': [1]},
                     {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [0.1]},
                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [0.1]},
+                    {'kernel': ['rbf'], 'gamma': [1e-5], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-6], 'C': [0.1]},
                     {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [0.01]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [0.01]},
                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [0.01]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [0.01]},
                     {'kernel': ['rbf'], 'gamma': [1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [10], 'C': [1]},
                     {'kernel': ['rbf'], 'gamma': [1e2], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1], 'C': [0.1]},
-                    {'kernel': ['rbf'], 'gamma': [10], 'C': [0.1]}, {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [10]},
-                    {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [10]},
-                    {'kernel': ['rbf'], 'gamma': [1], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [10], 'C': [10]}]
+                    {'kernel': ['rbf'], 'gamma': [10], 'C': [0.1]}]  # , {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [10]},
+                    # {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [1e-1], 'C': [10]},
+                    # {'kernel': ['rbf'], 'gamma': [1], 'C': [10]}, {'kernel': ['rbf'], 'gamma': [10], 'C': [10]}]
 
 # class Timer(object):
 #     def __init__(self, name=None, doPrint = True):
@@ -96,9 +100,18 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
     #  ---------------------------------------------------- scores = ['precision']
     # calc_probs = True
 
+    parts_of_path = path.split('/')
+    dump_path = os.path.join(DUMP_FOLDER, parts_of_path[-1])
+    if not os.path.exists(dump_path):
+            os.makedirs(dump_path)
+            CURRENT_DUMP_FOLDER = dump_path
+
     print('Start the grid search')
     t = time.time()
     for tuned_param in tuned_parameters:
+        already_exist = check_if_params_were_calculated(dump_path, tuned_param)
+        if already_exist:
+            continue
         params = []
         for fold_num, (train_index, test_index) in enumerate(cv):
             params.append((x, y, train_index, test_index, tuned_param, fold_num, calc_probs))
@@ -122,9 +135,9 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
         x_test = scaler.transform(x_test)
 
 
-        mini_path=path.split('/')[-1]
-        mini_path=mini_path.replace(' ','_')
-        print_results(clf, x_test, y_test, calc_probs, path, cv_scores,mini_path)
+        mini_path = path.split('/')[-1]
+        mini_path = mini_path.replace(' ', '_')
+        print_results(clf, x_test, y_test, calc_probs, path, cv_scores, mini_path)
 
 
 def calc_cv_scores(p):
@@ -185,7 +198,7 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
     if x_test is not None:
         y_true, y_pred = y_test, clf.predict(x_test)
         if calc_probs:
-            save(y_pred, os.path.join(DUMP_FOLDER,mini_path, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
+            save(y_pred, mini_path, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma))
             calc_auc(y_pred, y_true, roc_fig_name=os.path.join(DUMP_FOLDER, str(clf)+'.png'))
             score = auc_score(y_pred, y_true)
             y_pred = probs_to_preds(y_pred)
@@ -200,7 +213,7 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
         directory = os.path.join(DUMP_FOLDER, mini_path)
         if not os.path.exists(directory):
             os.makedirs(directory)
-        save(clf, os.path.join(directory, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str)))
+        save(clf, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str))
     #    save(clf, os.path.join(DUMP_FOLDER, 'Est'+str(score)+'.pkl'))
 
         report(str(clf), path, score, 'Est'+str(score)+'.pkl', time, cv_scores, cm_normalized)
@@ -238,6 +251,11 @@ def shuffle(x):  # seed=13
     np.random.shuffle(idx)
     x_shuf = x[idx]
     return x_shuf, idx
+
+
+def check_if_params_were_calculated(dump_folder, tuned_params):
+    file_to_create = os.path.join(dump_folder, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(tuned_params.get('C')[0], tuned_params.get('kernel')[0], tuned_params.get('gamma')[0]))
+    return os.path.isfile(file_to_create)
 
 
 class TSVC(SVC):
@@ -288,7 +306,8 @@ class TSVC(SVC):
 
 
 def save(obj, file_name):
-    with open(file_name, 'w') as pklFile:
+    full_file_name = os.path.join(CURRENT_DUMP_FOLDER, file_name)
+    with open(full_file_name, 'w') as pklFile:
         pickle.dump(obj, pklFile)
 
 
@@ -381,9 +400,9 @@ def plot_roc(mean_tpr, mean_fpr, do_plot, len_cross_validation=1, file_name=''):
 
 
 def go():
-    directory=os.path.join(base_path,'Pre')
-    differentDataPaths=[x[0] for x in os.walk(directory)]
-    differentDataPaths=differentDataPaths[1:]
+    directory = os.path.join(base_path,'Pre')
+    differentDataPaths = [x[0] for x in os.walk(directory)]
+    differentDataPaths = differentDataPaths[1:]
     # if socket.gethostname() == 'Ohad-PC':
     #     base_path = 'C:\Users\Ohad\Copy\Baus'
     # else:
@@ -398,9 +417,9 @@ def go():
     # path='/home/ohadfel/Desktop/4ohad/Last_change'
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
     for feature_folder in differentDataPaths:
-        #path = os.path.join(base_path, 'Pre', 'data1')
+        # path = os.path.join(base_path, 'Pre', 'data1')
         x, y, x_test, y_test, inds = load_data(feature_folder)
-        print(os.path.dirname(os.path.abspath(__file__)))
+        print(feature_folder)
         folds_num = 5
 
         run(x, y, x_test, y_test, folds_num, feature_folder, inds, 5)
