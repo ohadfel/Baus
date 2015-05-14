@@ -41,6 +41,7 @@ CURRENT_DUMP_FOLDER = ''
 # DUMP_FOLDER = 'C:\Users\Ohad\Copy\Baus\dumps'
 
 # DUMP_FOLDER = '/media/ohadfel/New\ Volume/Results'
+SAVE = False
 
 tuned_parameters = [{'kernel': ['rbf'], 'gamma': [1e-1], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-2], 'C': [1]},
                     {'kernel': ['rbf'], 'gamma': [1e-3], 'C': [1]}, {'kernel': ['rbf'], 'gamma': [1e-4], 'C': [1]},
@@ -93,7 +94,7 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
     # ------------------------------------------------------- y_test = y_test[:500]
 
     # cv = StratifiedShuffleSplit(y, folds_num, heldoutSize, random_state=0)
-    cv = IndicesKFold(inds, 5)  # , 4000, 1000)
+    cv = IndicesKFold(inds, folds_num)  # , 4000, 1000)
     # -------------------------------- scores = ['roc_auc','precision', 'recall']
     # -------------- auc_scoreFunc = make_scorer(auc_score, greater_is_better=True)
     # scores = ['roc_auc'] #[auc_scoreFunc] # 'roc_auc'
@@ -103,9 +104,9 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
     parts_of_path = path.split('/')
     dump_path = os.path.join(DUMP_FOLDER, parts_of_path[-1])
     if not os.path.exists(dump_path):
-            os.makedirs(dump_path)
-            CURRENT_DUMP_FOLDER = dump_path
+        os.makedirs(dump_path)
 
+    current_dump_folder = dump_path
     print('Start the grid search')
     t = time.time()
     for tuned_param in tuned_parameters:
@@ -124,20 +125,21 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
 
         cv_scores = np.array([score for (clf, score) in map_results][:len(cv)])
         print(cv_scores)
+        mean_cv_score = sum(cv_scores)/len(cv_scores)
+        print('==============================mean auc score is '+str(mean_cv_score)+'==============================')
         clf = map_results[0][0]
 
         elapsed = time.time() - t
         print('Request took '+str(elapsed)+' sec.')
         print(str(datetime.now()))
 
-        scaler = preprocessing.StandardScaler().fit(x)
-        x = scaler.transform(x)
-        x_test = scaler.transform(x_test)
-
+        # scaler = preprocessing.StandardScaler().fit(x)
+        # x = scaler.transform(x)
+        # x_test = scaler.transform(x_test)
 
         mini_path = path.split('/')[-1]
         mini_path = mini_path.replace(' ', '_')
-        print_results(clf, x_test, y_test, calc_probs, path, cv_scores, mini_path)
+        print_results(clf, x_test, y_test, calc_probs, path, None, cv_scores, current_dump_folder,mean_cv_score)
 
 
 def calc_cv_scores(p):
@@ -176,7 +178,7 @@ def calc_cv_scores(p):
     # ------------------------------------------------ print(str(datetime.now()))
 
 
-def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, time=None, cv_scores=None,mini_path=''):
+def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, time=None, cv_scores=None, mini_path='', cv_mean_score=0):
     # save(clf, os.path.join(DUMP_FOLDER, 'Est.pkl'))
     # print("Best parameters set found on development set:")
     # print()
@@ -198,14 +200,17 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
     if x_test is not None:
         y_true, y_pred = y_test, clf.predict(x_test)
         if calc_probs:
-            save(y_pred, mini_path, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma))
-            calc_auc(y_pred, y_true, roc_fig_name=os.path.join(DUMP_FOLDER, str(clf)+'.png'))
+            save(y_pred, os.path.join(mini_path,'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
+            calc_auc(y_pred, y_true, roc_fig_name=os.path.join(mini_path, str(clf)+'.png'))
             score = auc_score(y_pred, y_true)
             y_pred = probs_to_preds(y_pred)
         cm = confusion_matrix(y_true, y_pred)
         np.set_printoptions(precision=2)
         cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
         print(cm_normalized)
+
+        if cv_mean_score != 0:
+            score = cv_mean_score
         # score=abs(cm_normalized[0,0]-cm_normalized[0,1]+cm_normalized[1,1]-cm_normalized[1,0])
         score_str = "{:.3f}".format(score)
         path = path.split('/')[-1]
@@ -213,7 +218,7 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
         directory = os.path.join(DUMP_FOLDER, mini_path)
         if not os.path.exists(directory):
             os.makedirs(directory)
-        save(clf, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str))
+        save(clf, os.path.join(mini_path, 'CLF_c_{}_kernel_{}_gamma_{}_score_{}.pkl'.format(clf.C, clf.kernel, clf.gamma, score_str)))
     #    save(clf, os.path.join(DUMP_FOLDER, 'Est'+str(score)+'.pkl'))
 
         report(str(clf), path, score, 'Est'+str(score)+'.pkl', time, cv_scores, cm_normalized)
@@ -222,11 +227,25 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 
+
 def auc_score(ypred, ytrue):
     # Do something
     # fpr, tpr, thresholds = metrics.roc_curve(ytrue, ypred, pos_label=2)
     fpr, tpr, thresholds = roc_curve(ytrue, ypred[:, 1])
     return sklearn.metrics.auc(fpr, tpr)
+
+
+def fpr_tpr_auc_calc(ypred, ytrue):
+    fpr, tpr, _ = roc_curve(ytrue, ypred[:, 1])
+    return fpr, tpr, sklearn.metrics.auc(fpr, tpr)
+
+
+def micro_fpr_tpr_auc_calc(ypred, ytrue):
+    # Compute micro-average ROC curve and ROC area
+    fpr, tpr, _ = roc_curve(ypred.ravel(), ytrue.ravel())
+    roc_auc = auc(fpr, tpr)
+    return fpr, tpr, roc_auc
+
 
 
 def gmean_score(ytrue, ypred):
@@ -255,11 +274,20 @@ def shuffle(x):  # seed=13
 
 def check_if_params_were_calculated(dump_folder, tuned_params):
     file_to_create = os.path.join(dump_folder, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(tuned_params.get('C')[0], tuned_params.get('kernel')[0], tuned_params.get('gamma')[0]))
-    return os.path.isfile(file_to_create)
+    file_exists = os.path.isfile(file_to_create)
+    if not file_exists:
+        pass
+    return file_exists
+
+
+def num_of_line_in_summary_file():
+    with open(os.path.join(DUMP_FOLDER, 'summary.txt')) as f:
+        for i, l in enumerate(f):
+            pass
+    return i + 1
 
 
 class TSVC(SVC):
-
     def __init__(self, C=1, kernel='rbf', gamma=0, calc_probs=True):
         super(TSVC, self).__init__(C=C, kernel=kernel, gamma=gamma, probability=True)
         self.calc_probs = calc_probs
@@ -269,21 +297,23 @@ class TSVC(SVC):
     def fit(self, x, y, do_shuffle=True):
         # if (do_shuffle):
         #     (x, idx) = shuffle(x)
-            # y = y[idx]
+        # y = y[idx]
         # self.scaler = preprocessing.StandardScaler().fit(x)
         # x = self.scaler.transform(x)
         super(TSVC, self).fit(x, y)
         return self
-
     def predict(self, x):
         print('predict!')
-#         x = self.scaler.transform(x)
+        #         x = self.scaler.transform(x)
         if self.calc_probs:
             probs = super(TSVC, self).predict_proba(x)
         else:
             probs = super(TSVC, self).predict(x)
         # score = roc_auc_score(self.ytrue, probs[:,1])
         return probs
+
+
+
 
 '''
         self._impl = impl
@@ -306,9 +336,10 @@ class TSVC(SVC):
 
 
 def save(obj, file_name):
-    full_file_name = os.path.join(CURRENT_DUMP_FOLDER, file_name)
-    with open(full_file_name, 'w') as pklFile:
-        pickle.dump(obj, pklFile)
+    if SAVE:
+        full_file_name = os.path.join(CURRENT_DUMP_FOLDER, file_name)
+        with open(full_file_name, 'w') as pklFile:
+            pickle.dump(obj, pklFile)
 
 
 def probs_to_preds(probs):
@@ -359,6 +390,13 @@ def report(params, path, score, dump_file_name, time, cv_scores, cm_normalized):
     f.write('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n')
     f.close()
 
+    sum_str = os.path.join(DUMP_FOLDER, 'summary.txt')
+    f = open(sum_str, 'a')
+    f.seek(0)  # get to the first position
+    line = 'params '+params+';dataset '+path+';score;'+str(sum(cv_scores)/len(cv_scores)) + "\n"
+    f.write(line)
+    f.close()
+
 
 def calc_auc(probs, y, do_plot=True, roc_fig_name=''):
     mean_tpr = 0.0
@@ -389,7 +427,7 @@ def plot_roc(mean_tpr, mean_fpr, do_plot, len_cross_validation=1, file_name=''):
     plt.ylabel('True Positive Rate')
     plt.title('ROC curve')
     plt.legend(loc="lower right")
-    if file_name != '':
+    if file_name != '' and SAVE:
         plt.savefig(file_name)
 
     if do_plot:
@@ -400,7 +438,7 @@ def plot_roc(mean_tpr, mean_fpr, do_plot, len_cross_validation=1, file_name=''):
 
 
 def go():
-    directory = os.path.join(base_path,'Pre')
+    directory = os.path.join(base_path, 'Pre')
     differentDataPaths = [x[0] for x in os.walk(directory)]
     differentDataPaths = differentDataPaths[1:]
     # if socket.gethostname() == 'Ohad-PC':
@@ -418,6 +456,12 @@ def go():
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
     for feature_folder in differentDataPaths:
         # path = os.path.join(base_path, 'Pre', 'data1')
+        parts_of_path = feature_folder.split('/')
+        dump_path = os.path.join(DUMP_FOLDER, parts_of_path[-1])
+        if not os.path.exists(dump_path):
+            os.makedirs(dump_path)
+        else:
+            continue
         x, y, x_test, y_test, inds = load_data(feature_folder)
         print(feature_folder)
         folds_num = 5
