@@ -4,9 +4,6 @@
 # @author: ohadfel
 #
 
-@author: ohadfel
-'''
-
 from sklearn import preprocessing
 from sklearn.svm import SVC
 from sklearn.metrics import confusion_matrix
