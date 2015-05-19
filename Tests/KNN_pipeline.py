@@ -1,7 +1,6 @@
 import itertools
 import pickle
 
-# 10/05
 __author__ = 'ohadfel'
 # create centroids for each condition
 # when need to predict do majority
