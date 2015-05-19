@@ -13,7 +13,10 @@ def save(obj, file_name):
 
 def convert(file):
     f = h5py.File(file, 'r')
-    var = np.array(f.get(find_var(file.split('/')[-1])))
+    for cur_var in f:
+        if cur_var in ['XTrain', 'YTrain', 'XTest', 'YTest', 'patternsCrossValInd']:
+            var = np.array(f.get(cur_var))
+
     new_file_parts = file.split('.')
     new_file_parts[-1] = 'pkl'
     new_file = '.'.join(new_file_parts)
