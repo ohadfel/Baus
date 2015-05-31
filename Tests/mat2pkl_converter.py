@@ -14,6 +14,7 @@ def save(obj, file_name):
 
 
 def convert(file):
+    print('converting-'+file)
     f = h5py.File(file, 'r')
     for cur_var in f:
         if cur_var in ['XTrain', 'YTrain', 'XTest', 'YTest', 'patternsCrossValInd']:

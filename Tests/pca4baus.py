@@ -19,6 +19,10 @@ from sklearn import preprocessing
 import time
 from sklearn import neighbors
 from datetime import datetime
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from sklearn import decomposition
+from scipy.sparse import csr_matrix
 
 
 if socket.gethostname() == 'Ohad-PC':
@@ -52,49 +56,39 @@ for i, j in itertools.product(n_clusters, n_neighbors):
 
 def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True):
     # cv = StratifiedShuffleSplit(y, folds_num, heldoutSize, random_state=0)
-    cv = IndicesKFold(inds, folds_num)  # , 4000, 1000)
-    t = time.time()
-    last_num_of_clusters = 0
-    for tuned_param in tuned_parameters:
-        # already_exist = check_if_params_were_calculated(dump_path, tuned_param)
-        # if already_exist:
-        #     continue
-        if tuned_param[0] != last_num_of_clusters:
-            params = []
-            for fold_num, (train_index, test_index) in enumerate(cv):
-                params.append((x, y, train_index, test_index, tuned_param, fold_num))
+    print('dataset is :'+path)
+    # scaler = preprocessing.StandardScaler().fit(x)
+    # x = scaler.transform(x)
 
-            if jobs_num == 1:
-                map_results = [calculate_centroids(p) for p in params]  # For debugging
-            else:
-                map_results = utils.parmap(calculate_centroids, params, jobs_num)
+    # fig = plt.figure(1, figsize=(4, 3))
+    plt.clf()
+    # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
 
-        params = []
-        for fold_num, (train_index, test_index) in enumerate(cv):
-            params.append((x, y, train_index, test_index, tuned_param, fold_num, map_results[fold_num][0], map_results[fold_num][1]))
-        print(tuned_param)
+    plt.cla()
+    # pca = decomposition.PCA(n_components=3)
+    pca = decomposition.PCA(n_components=2,copy=False)
+    pca.fit(x)
+    X = pca.transform(x)
 
-        if jobs_num == 1:
-            map_results = [calc_cv_scores(p) for p in params]  # For debugging
-        else:
-            map_results = utils.parmap(calc_cv_scores, params, jobs_num)
-        print('so far so good.')
+    # for name, label in [('Setosa', 0), ('Versicolour', 1), ('Virginica', 2)]:
+    #     ax.text3D(X[y == label, 0].mean(),
+    #               X[y == label, 1].mean() + 1.5,
+    #               X[y == label, 2].mean(), name,
+    #               horizontalalignment='center',
+    #               bbox=dict(alpha=.5, edgecolor='w', facecolor='w'))
+    # # Reorder the labels to have colors matching the cluster results
+    # y = np.choose(y, [1, 2, 0]).astype(np.float)
 
-        cv_scores = np.array([score for (clf, score) in map_results][:len(cv)])
-        print(cv_scores)
-        mean_cv_score = sum(cv_scores)/len(cv_scores)
-        print('==============================mean score is '+str(mean_cv_score)+'==============================')
-        clf = map_results[0][0]
-
-        elapsed = time.time() - t
-        print('Request took '+str(elapsed)+' sec.')
-        print(str(datetime.now()))
-
-        path = path.split('/')[-1]
-        report(tuned_param, path, score, cv_scores)
-        # scaler = preprocessing.StandardScaler().fit(x)
-        # x = scaler.transform(x)
-        # x_test = scaler.transform(x_test)
+    # ax.scatter(X[:, 0], X[:, 1], X[:, 2], c=y, cmap=plt.cm.spectral)
+    plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.bwr)
+    # plt.set_xlabel('PC1')
+    # plt.set_ylabel('PC2')
+    # ax.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.seismic)
+    # ax.set_xlabel('PC1')
+    # ax.set_ylabel('PC2')
+    # ax.set_zlabel('PC3')
+    plt.title(path + ' PCA')
+    plt.show()
 
 
 def calc_cv_scores(p):
@@ -228,7 +222,7 @@ def load_pickled_data(path):
 
     file_path = os.path.join(path, 'Xtest.pkl')
     data = pickle.load(open(file_path, 'rb'))
-    x_test =data  # For converting to numpy array
+    x_test = data  # For converting to numpy array
 
     x_test = x_test.T
 
@@ -244,6 +238,72 @@ def load_pickled_data(path):
 
     return x, y, x_test, y_test, inds
 
+
+def load_sparse_data(path):
+    os.path.join(path, 'Xtrain.mat')
+    f = h5py.File(os.path.join(path, 'Xtrain.mat'), 'r')
+    data = f.get('XTrain')
+    x = np.array(data)  # For converting to numpy array
+    x = x.T
+
+    x = csr_matrix((x[:,2], (x[:,0], x[:,1])), shape=(27438, 149331))
+    x = x.toarray()
+
+    f = h5py.File(os.path.join(path, 'Ytrain.mat'), 'r')
+    data = f.get('YTrain')
+    y = np.array(data)  # For converting to numpy array
+    y = np.squeeze(y)
+    y = y.T
+
+    f = h5py.File(os.path.join(path, 'Xtest.mat'), 'r')
+    data = f.get('XTest')
+    x_test = np.array(data)  # For converting to numpy array
+    x_test = x_test.T
+
+
+    x_test = csr_matrix((x_test[:, 2], (x_test[:, 0], x_test[:, 1])), shape=(8429, 149331))
+    x_test = x_test.toarray()
+
+    f = h5py.File(os.path.join(path, 'Ytest.mat'), 'r')
+    data = f.get('YTest')
+    y_test = np.array(data)  # For converting to numpy array
+    y_test = np.squeeze(y_test)
+    y_test = y_test.T
+
+    f = h5py.File(os.path.join(path, 'inds.mat'), 'r')
+    inds = f.get('patternsCrossValInd')
+    inds = np.array(inds, dtype=np.int)
+
+    return x, y, x_test, y_test, inds
+
+
+def load_pickled_sparse_data(path):
+    file_path = os.path.join(path, 'Xtrain.pkl')
+    data = pickle.load(open(file_path, 'rb'))
+    x = data.T
+
+    file_path = os.path.join(path, 'Ytrain.pkl')
+    data = pickle.load(open(file_path, 'rb'))
+    y = np.squeeze(data)
+    y = y.T
+
+    file_path = os.path.join(path, 'Xtest.pkl')
+    data = pickle.load(open(file_path, 'rb'))
+    x_test =data  # For converting to numpy array
+
+    x_test = x_test.T
+
+    file_path = os.path.join(path, 'Ytest.pkl')
+    data = pickle.load(open(file_path, 'rb'))
+    y_test = data  # For converting to numpy array
+    y_test = np.squeeze(y_test)
+    y_test = y_test.T
+
+    file_path = os.path.join(path, 'inds.pkl')
+    data = pickle.load(open(file_path, 'rb'))
+    inds = np.array(data, dtype=np.int)
+
+    return x, y, x_test, y_test, inds
 
 def go():
     directory = os.path.join(base_path, 'Pre')
@@ -265,10 +325,16 @@ def go():
     # path='/home/ohadfel/Copy/Baus/Pre/data1'
     for feature_folder in differentDataPaths:
         # path = os.path.join(base_path, 'Pre', 'data1')
-        if True or socket.gethostname()[:3] == 'ctx':
-            x, y, x_test, y_test, inds = load_pickled_data(feature_folder)
+        if feature_folder.find('sparse') != -1:
+            if socket.gethostname()[:3] == 'ctx':
+                x, y, x_test, y_test, inds = load_pickled_sparse_data(feature_folder)
+            else:
+                x, y, x_test, y_test, inds = load_sparse_data(feature_folder)
         else:
-            x, y, x_test, y_test, inds = load_data(feature_folder)
+            if True or socket.gethostname()[:3] == 'ctx':
+                x, y, x_test, y_test, inds = load_pickled_data(feature_folder)
+            else:
+                x, y, x_test, y_test, inds = load_data(feature_folder)
         print(feature_folder)
         folds_num = 5
 
