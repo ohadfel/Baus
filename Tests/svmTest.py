@@ -227,7 +227,7 @@ def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, ti
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
 
 
-def auc_Score(ypred, ytrue):
+def auc_score(ypred, ytrue):
     # Do something
     # fpr, tpr, thresholds = metrics.roc_curve(ytrue, ypred, pos_label=2)
     fpr, tpr, thresholds = roc_curve(ytrue, ypred[:, 1])
