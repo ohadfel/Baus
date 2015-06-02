@@ -3,6 +3,7 @@
 #
 # @author: ohadfel
 #
+import math
 
 from sklearn import preprocessing
 from sklearn.svm import SVC
@@ -25,6 +26,7 @@ from crosVal import IndicesKFold
 import utils
 from collections import Counter
 import socket
+from scipy.sparse import csr_matrix
 
 
 # np.logspace(-2, 3, 6)
@@ -115,7 +117,7 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
             continue
         params = []
         for fold_num, (train_index, test_index) in enumerate(cv):
-            params.append((x, y, train_index, test_index, tuned_param, fold_num, calc_probs))
+            params.append((x, y, train_index, test_index, tuned_param, fold_num, calc_probs, inds))
 
         print(tuned_param)
         if jobs_num == 1:
@@ -123,7 +125,7 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
         else:
             map_results = utils.parmap(calc_cv_scores, params, jobs_num)
 
-        cv_scores = np.array([score for (clf, score) in map_results][:len(cv)])
+        cv_scores = np.array([(score,scoreTrial) for (clf, score,scoreTrial) in map_results][:len(cv)])
         print(cv_scores)
         mean_cv_score = sum(cv_scores)/len(cv_scores)
         print('==============================mean auc score is '+str(mean_cv_score)+'==============================')
@@ -139,68 +141,65 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
 
         mini_path = path.split('/')[-1]
         mini_path = mini_path.replace(' ', '_')
-        print_results(clf, x_test, y_test, calc_probs, path, None, cv_scores, current_dump_folder,mean_cv_score)
+        print_results(clf, x_test, y_test, calc_probs, path, None, cv_scores, current_dump_folder, mean_cv_score)
 
 
 def calc_cv_scores(p):
-    x, y, train_index, test_index, tuned_param, fold_num, calc_probs = p
+    x, y, train_index, test_index, tuned_param, fold_num, calc_probs, inds = p
 
-    scaler = preprocessing.StandardScaler().fit(x[train_index])
+    scaler = preprocessing.StandardScaler(with_mean=False).fit(x[train_index])
     x[train_index] = scaler.transform(x[train_index])
     x[test_index] = scaler.transform(x[test_index])
 
     clf = TSVC(C=tuned_param['C'][0], kernel=tuned_param['kernel'][0], gamma=tuned_param.get('gamma', [0])[0], calc_probs=calc_probs)
     print(fold_num, str(datetime.now()))
     print('number of train samples'+str(x[train_index].shape), 'number of test samples'+str(x[test_index].shape))
-    print(Counter(y))
+    print('train classes stats:')
+    print(Counter(y[train_index]))
+    print('test classes stats:')
+    print(Counter(y[test_index]))
+    print('')
     t = time.time()
     clf.fit(x[train_index], y[train_index])
     ypred = clf.predict(x[test_index])
     score = auc_score(ypred, y[test_index])
+    scoreTrial = calc_scores_for_trials(ypred,inds[:,test_index])
     elapsed = time.time() - t
     print(tuned_param)
     print('Request took '+str(elapsed)+' sec.')
-    return clf, score
+    return clf, score, scoreTrial
 
-    # clf = GridSearchCV(svm.LinearSVC(C=0.01),tuned_param, cv=cv, scoring=scores[0], verbose=9, n_jobs=5)
-    # clf = GridSearchCV(TSVC(calc_probs=calc_probs), tuned_param, cv=cv, scoring=scores[0], verbose=999, n_jobs=5)
-    # clf = cross_val_score(TSVC(calc_probs=calc_probs, C=tuned_param['C'][0],
-    #     kernel=tuned_param['kernel'][0], gamma=tuned_param.get('gamma', [0])[0]), x, y, cv=cv,
-    #     scoring=scores[0], n_jobs=5, verbose=999)
-    # ---------------------------------------------- t=TSVC(C=1,kernel='rbf')
-    # --------- clf = GridSearchCV(t, tuned_parameters, cv=cv, scoring=score)
-    # ------------------------------------------------------ x = sp.csr_matrix(x)
-    #  ---------------------------------------------------------------
-    # ------------------------ clf = svm.LinearSVC(C=0.01, verbose=9, dual=False)
-    # ----------------------- #clf = svm.SVC(kernel='linear', C=0.01, verbose=99)
-    # ------------------------------------------------ print(str(datetime.now()))
-    # ------------------------------------------------------------- clf.fit(x, y)
-    # ------------------------------------------------ print(str(datetime.now()))
+
+def calc_scores_for_trials(ypred, inds):
+    print('in calc_scores_for_trials')
+    less=inds.T
+    l=less[:,[1,3]]
+    trials=unique_rows(l)
+    trial_predictions=np.zeros((trials.shape[0],4))
+    trial_predictions[:,[0,1]]= trials
+
+    for ii in range(ypred.shape[0]):
+        for jj in range(trials.shape[0]):
+            if np.all(trials[jj]==l[ii]):
+                trial_predictions[jj, 2] = trial_predictions[jj, 2] - math.log(ypred[jj, 0],2)
+                trial_predictions[jj, 3] = trial_predictions[jj, 3] - math.log(ypred[jj, 1],2)
+
+    for ii in range(trial_predictions.shape[0]):
+        curr_sum = trial_predictions[ii,2] + trial_predictions[ii,3]
+        trial_predictions[ii,2] = trial_predictions[ii,2]/ curr_sum
+        trial_predictions[ii,3] = trial_predictions[ii,3]/ curr_sum
+
+    trial_score = auc_score(trial_predictions[:,[2,3]],trial_predictions[:,1])
+    print('trial level auc = ' + str(trial_score))
+    return trial_score
 
 
 def print_results(clf, x_test=None, y_test=None, calc_probs=False, path=None, time=None, cv_scores=None, mini_path='', cv_mean_score=0):
-    # save(clf, os.path.join(DUMP_FOLDER, 'Est.pkl'))
-    # print("Best parameters set found on development set:")
-    # print()
-    # print(clf.best_estimator_)
-    # print()
-    # print("Grid scores on development set:")
-    # print()
-    # for params, mean_score, scores in clf.grid_scores_:
-    #      print("%0.3f (+/-%0.03f) for %r"
-    #       % (mean_score, scores.std() / 2, params))
-    #  print()
-    #  #
-    #  print("Detailed classification report:")
-    #  print()
-    #  print("The model is trained on the full development set.")
-    #  print("The scores are computed on the full evaluation set.")
-    #  print()
 
     if x_test is not None:
         y_true, y_pred = y_test, clf.predict(x_test)
         if calc_probs:
-            save(y_pred, os.path.join(mini_path,'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)))
+            save(y_pred, os.path.join(mini_path, 'YPRED_c_{}_kernel_{}_gamma_{}.pkl'.format(clf.C, clf.kernel, clf.gamma)),1)
             calc_auc(y_pred, y_true, roc_fig_name=os.path.join(mini_path, str(clf)+'.png'))
             score = auc_score(y_pred, y_true)
             y_pred = probs_to_preds(y_pred)
@@ -284,10 +283,31 @@ def num_of_line_in_summary_file():
             pass
     return i + 1
 
+def unique_rows(A, return_index=False, return_inverse=False):
+    """
+    Similar to MATLAB's unique(A, 'rows'), this returns B, I, J
+    where B is the unique rows of A and I and J satisfy
+    A = B[J,:] and B = A[I,:]
+
+    Returns I if return_index is True
+    Returns J if return_inverse is True
+    """
+    A = np.require(A, requirements='C')
+    assert A.ndim == 2, "array must be 2-dim'l"
+
+    B = np.unique(A.view([('', A.dtype)]*A.shape[1]),
+               return_index=return_index,
+               return_inverse=return_inverse)
+
+    if return_index or return_inverse:
+        return (B[0].view(A.dtype).reshape((-1, A.shape[1]), order='C'),) \
+            + B[1:]
+    else:
+        return B.view(A.dtype).reshape((-1, A.shape[1]), order='C')
 
 class TSVC(SVC):
     def __init__(self, C=1, kernel='rbf', gamma=0, calc_probs=True):
-        super(TSVC, self).__init__(C=C, kernel=kernel, gamma=gamma, probability=True)
+        super(TSVC, self).__init__(C=C, kernel=kernel, gamma=gamma, probability=True,verbose=False)
         self.calc_probs = calc_probs
         # ----------------------------------------------- print("in constructor")
         # print('C='+str(C)+', kernel='+kernel+', gamma='+str(gamma)+', probability=True')
@@ -311,9 +331,6 @@ class TSVC(SVC):
         # score = roc_auc_score(self.ytrue, probs[:,1])
         return probs
 
-
-
-
 '''
         self._impl = impl
         self.kernel = kernel
@@ -334,8 +351,8 @@ class TSVC(SVC):
 '''
 
 
-def save(obj, file_name):
-    if SAVE:
+def save(obj, file_name,force_save=0):
+    if SAVE or force_save == 1:
         full_file_name = os.path.join(CURRENT_DUMP_FOLDER, file_name)
         with open(full_file_name, 'w') as pklFile:
             pickle.dump(obj, pklFile)
@@ -362,6 +379,43 @@ def load_data(path):
     data = f.get('XTest')
     x_test = np.array(data)  # For converting to numpy array
     x_test = x_test.T
+
+    f = h5py.File(os.path.join(path, 'Ytest.mat'), 'r')
+    data = f.get('YTest')
+    y_test = np.array(data)  # For converting to numpy array
+    y_test = np.squeeze(y_test)
+    y_test = y_test.T
+
+    f = h5py.File(os.path.join(path, 'inds.mat'), 'r')
+    inds = f.get('patternsCrossValInd')
+    inds = np.array(inds, dtype=np.int)
+
+    return x, y, x_test, y_test, inds
+
+
+def load_sparse_data(path):
+    os.path.join(path, 'Xtrain.mat')
+    f = h5py.File(os.path.join(path, 'Xtrain.mat'), 'r')
+    data = f.get('XTrain')
+    x = np.array(data)  # For converting to numpy array
+    x = x.T
+
+    x = csr_matrix((x[:, 2], (x[:, 0], x[:, 1])), shape=(27438, 149331))
+    # x = x.toarray()
+
+    f = h5py.File(os.path.join(path, 'Ytrain.mat'), 'r')
+    data = f.get('YTrain')
+    y = np.array(data)  # For converting to numpy array
+    y = np.squeeze(y)
+    y = y.T
+
+    f = h5py.File(os.path.join(path, 'Xtest.mat'), 'r')
+    data = f.get('XTest')
+    x_test = np.array(data)  # For converting to numpy array
+    x_test = x_test.T
+
+    x_test = csr_matrix((x_test[:, 2], (x_test[:, 0], x_test[:, 1])), shape=(8429, 149331))
+    # x_test = x_test.toarray()
 
     f = h5py.File(os.path.join(path, 'Ytest.mat'), 'r')
     data = f.get('YTest')
@@ -436,6 +490,12 @@ def plot_roc(mean_tpr, mean_fpr, do_plot, len_cross_validation=1, file_name=''):
     return mean_auc, mean_tpr, mean_fpr
 
 
+def load_pickled_sparse_data(feature_folder):
+    pass
+
+def load_pickled_data():
+    pass
+
 def go():
     directory = os.path.join(base_path, 'Pre')
     differentDataPaths = [x[0] for x in os.walk(directory)]
@@ -459,9 +519,20 @@ def go():
         dump_path = os.path.join(DUMP_FOLDER, parts_of_path[-1])
         if not os.path.exists(dump_path):
             os.makedirs(dump_path)
+        # else:
+        #     continue
+        if feature_folder.find('sparse') != -1:
+            if socket.gethostname()[:3] == 'ctx':
+                x, y, x_test, y_test, inds = load_pickled_sparse_data(feature_folder)
+            else:
+                x, y, x_test, y_test, inds = load_sparse_data(feature_folder)
         else:
-            continue
-        x, y, x_test, y_test, inds = load_data(feature_folder)
+            if socket.gethostname()[:3] == 'ctx':
+                x, y, x_test, y_test, inds = load_pickled_data(feature_folder)
+            else:
+                x, y, x_test, y_test, inds = load_data(feature_folder)
+        print(feature_folder)
+        # x, y, x_test, y_test, inds = load_data(feature_folder)
         print(feature_folder)
         folds_num = 5
 

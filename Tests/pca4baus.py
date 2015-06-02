@@ -25,6 +25,7 @@ from sklearn import decomposition
 from scipy.sparse import csr_matrix
 
 
+
 if socket.gethostname() == 'Ohad-PC':
     base_path = 'C:\Users\Ohad\Copy\Baus'
 
@@ -61,12 +62,14 @@ def run(x, y, x_test, y_test, folds_num, path, inds, jobs_num=6, calc_probs=True
     # x = scaler.transform(x)
 
     # fig = plt.figure(1, figsize=(4, 3))
-    plt.clf()
+    # plt.clf()
     # ax = Axes3D(fig, rect=[0, 0, .95, 1], elev=48, azim=134)
 
-    plt.cla()
+    # plt.cla()
     # pca = decomposition.PCA(n_components=3)
-    pca = decomposition.PCA(n_components=2,copy=False)
+
+    pca = decomposition.TruncatedSVD(n_components=2, algorithm='randomized', n_iter=5, random_state=None, tol=0.0)
+    # pca = decomposition. RandomizedPCA(n_components=2,copy=False)
     pca.fit(x)
     X = pca.transform(x)
 
@@ -247,7 +250,7 @@ def load_sparse_data(path):
     x = x.T
 
     x = csr_matrix((x[:,2], (x[:,0], x[:,1])), shape=(27438, 149331))
-    x = x.toarray()
+    # x = x.toarray()
 
     f = h5py.File(os.path.join(path, 'Ytrain.mat'), 'r')
     data = f.get('YTrain')
@@ -260,9 +263,8 @@ def load_sparse_data(path):
     x_test = np.array(data)  # For converting to numpy array
     x_test = x_test.T
 
-
     x_test = csr_matrix((x_test[:, 2], (x_test[:, 0], x_test[:, 1])), shape=(8429, 149331))
-    x_test = x_test.toarray()
+    # x_test = x_test.toarray()
 
     f = h5py.File(os.path.join(path, 'Ytest.mat'), 'r')
     data = f.get('YTest')
@@ -338,6 +340,8 @@ def go():
         print(feature_folder)
         folds_num = 5
 
+        scaler = preprocessing.StandardScaler(with_mean=False).fit(x)
+        x = scaler.transform(x)
         run(x, y, x_test, y_test, folds_num, feature_folder, inds, 5)
     print('finish!')
 
